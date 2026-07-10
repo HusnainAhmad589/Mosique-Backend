@@ -2,6 +2,8 @@ const express  = require('express');
 const cors     = require('cors');
 const helmet   = require('helmet');
 const morgan   = require('morgan');
+const cookieParser = require('cookie-parser');
+const path     = require('path');
 require('dotenv').config();
 
 // Routes
@@ -11,12 +13,16 @@ const artistRoutes    = require('./routes/artistRoutes');
 const moderatorRoutes = require('./routes/moderatorRoutes');
 const listenerRoutes  = require('./routes/listenerRoutes');
 const superAdminRoutes = require('./routes/superAdminRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
 
 const app = express();
 
 //  Security Middleware
 
-app.use(helmet()); // Sets secure HTTP headers
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+})); // Sets secure HTTP headers
 
 app.use(cors({
   origin:      process.env.CORS_ORIGIN || 'http://localhost:3000',
@@ -27,6 +33,7 @@ app.use(cors({
 
 //  General Middleware
 
+app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -35,6 +42,8 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
+// Serve static assets (uploads)
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 //  Health Check
 
@@ -56,6 +65,8 @@ app.use('/api/artist',    artistRoutes);
 app.use('/api/moderator', moderatorRoutes);
 app.use('/api/listener',  listenerRoutes);
 app.use('/api/super-admin', superAdminRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/categories', categoryRoutes);
 
 //  404 Handler
 

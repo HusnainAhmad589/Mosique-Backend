@@ -19,16 +19,22 @@ const hashToken = (token) =>
  */
 const verifyToken = async (req, res, next) => {
   try {
-    const authHeader = req.headers['authorization'];
+    // Read token from HttpOnly cookie (preferred) or Authorization header (fallback)
+    let token = req.cookies?.mosique_token;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!token) {
+      const authHeader = req.headers['authorization'];
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.split(' ')[1];
+      }
+    }
+
+    if (!token) {
       return res.status(401).json({
         success: false,
         message: 'Access denied. No token provided.',
       });
     }
-
-    const token = authHeader.split(' ')[1];
 
     // 1️⃣  Verify JWT signature + expiry
     let decoded;

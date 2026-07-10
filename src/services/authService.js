@@ -2,7 +2,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
-const { User, Role, TokenBlacklist, sequelize } = require('../models');
+const { User, Role, TokenBlacklist, Notification, sequelize } = require('../models');
+const { Op } = require('sequelize');
 const { hashToken } = require('../middleware/authMiddleware');
 
 const safeUser = (user) => ({
@@ -71,6 +72,30 @@ const registerUser = async ({ username, email, password, display_name, role, add
 
     await transaction.commit();
 
+    // After commit, notify admins and superadmins
+    try {
+      const adminRoles = await Role.findAll({
+        where: { slug: { [Op.in]: ['admin', 'superadmin', 'super admin'] } }
+      });
+      const adminRoleIds = adminRoles.map(r => r.id);
+      
+      const admins = await User.findAll({
+        where: { role_id: { [Op.in]: adminRoleIds } }
+      });
+
+      const notifications = admins.map(admin => ({
+        user_id: admin.id,
+        type: 'new_user_registered',
+        title: 'New User Registered',
+        message: `New user ${newUser.username} just registered as a ${roleRecord.name}.`,
+        metadata: { new_user_id: newUser.id, role: roleRecord.name }
+      }));
+
+      await Notification.bulkCreate(notifications);
+    } catch (notifErr) {
+      console.error('Failed to create admin notifications:', notifErr);
+    }
+
     const token = generateToken(newUser.id, roleRecord.slug);
     newUser.Role = roleRecord;
 
@@ -110,6 +135,12 @@ const loginUser = async (email, password) => {
 
   // 3. Handle inactive accounts
   if (user.is_active === false) {
+    if (user.deactivated_by_admin) {
+      const error = new Error('Account disabled by an administrator.');
+      error.status = 403;
+      throw error;
+    }
+
     // Only listeners and artists can self-reactivate
     if (user.Role?.slug === 'listener' || user.Role?.slug === 'artist') {
       await user.update({ is_active: true });
