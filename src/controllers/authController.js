@@ -15,12 +15,18 @@ const register = async (req, res) => {
 
   try {
     const { token, user } = await authService.registerUser(req.body);
-    
+
+    // Set token as an HttpOnly cookie (not accessible by JavaScript)
+    res.cookie('mosique_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    });
+
     return res.status(201).json({
       success: true,
       message: 'Account created successfully! Welcome to Mosique 🎵',
-      token,
-      expires_in: process.env.JWT_EXPIRES_IN || '24h',
       user,
     });
   } catch (err) {
@@ -48,11 +54,17 @@ const login = async (req, res) => {
     const { email, password } = req.body;
     const { token, user } = await authService.loginUser(email, password);
 
+    // Set token as an HttpOnly cookie (not accessible by JavaScript)
+    res.cookie('mosique_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    });
+
     return res.status(200).json({
       success:    true,
       message:    'Login successful. Welcome back! 🎵',
-      token,
-      expires_in: process.env.JWT_EXPIRES_IN || '24h',
       user,
     });
   } catch (err) {
@@ -69,7 +81,14 @@ const login = async (req, res) => {
 const logout = async (req, res) => {
   try {
     await authService.logoutUser(req.token, req.user.id);
-    
+
+    // Clear the HttpOnly cookie
+    res.clearCookie('mosique_token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    });
+
     return res.status(200).json({
       success: true,
       message: 'Logged out successfully. See you next time! 👋',

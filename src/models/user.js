@@ -3,9 +3,12 @@ const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
   class User extends Model {
     static associate(models) {
-      // define association here
       User.belongsTo(models.Role, { foreignKey: 'role_id' });
       User.hasMany(models.TokenBlacklist, { foreignKey: 'user_id' });
+      User.hasMany(models.Notification, { foreignKey: 'user_id' });
+      User.hasOne(models.ArtistProfile, { foreignKey: 'user_id' });
+      User.hasMany(models.Album, { foreignKey: 'artist_id' });
+      User.hasMany(models.Song, { foreignKey: 'artist_id' });
     }
   }
   User.init({
@@ -73,6 +76,10 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: false
     },
     must_change_password: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false
+    },
+    deactivated_by_admin: {
       type: DataTypes.BOOLEAN,
       defaultValue: false
     }

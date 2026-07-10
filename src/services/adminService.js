@@ -82,7 +82,10 @@ const toggleUserStatus = async (adminId, targetUserId, isActive) => {
     throw error;
   }
 
-  await user.update({ is_active: isActive });
+  await user.update({ 
+    is_active: isActive,
+    deactivated_by_admin: !isActive 
+  });
   return user;
 };
 

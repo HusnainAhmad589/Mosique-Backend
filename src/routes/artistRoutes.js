@@ -1,8 +1,18 @@
 const express = require('express');
 const router = express.Router();
 
-const { uploadTrack, getArtistStats } = require('../controllers/artistController');
+const { 
+  getProfile, 
+  updateProfile, 
+  getAlbums, 
+  createAlbum, 
+  getSongs, 
+  publishSong, 
+  getArtistStats 
+} = require('../controllers/artistController');
+
 const { verifyToken, requireRole } = require('../middleware/authMiddleware');
+const { uploadAudio, uploadImage } = require('../middleware/uploadMiddleware');
 
 // ─────────────────────────────────────────────────────────
 //  Protected Artist Routes (artist and above)
@@ -11,10 +21,19 @@ const { verifyToken, requireRole } = require('../middleware/authMiddleware');
 router.use(verifyToken);
 router.use(requireRole('artist'));
 
-// POST /api/artist/tracks
-router.post('/tracks', uploadTrack);
+// --- Profile ---
+router.get('/profile', getProfile);
+router.put('/profile', uploadImage.single('banner'), updateProfile);
 
-// GET /api/artist/stats
+// --- Albums ---
+router.get('/albums', getAlbums);
+router.post('/albums', uploadImage.single('artwork'), createAlbum);
+
+// --- Songs ---
+router.get('/songs', getSongs);
+router.post('/songs', uploadAudio.single('audio'), publishSong);
+
+// --- Stats (Placeholder) ---
 router.get('/stats', getArtistStats);
 
 module.exports = router;

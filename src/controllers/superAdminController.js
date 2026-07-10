@@ -52,7 +52,10 @@ exports.updateUserStatus = async (req, res) => {
     const user = await User.findByPk(id);
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-    await user.update({ is_active });
+    await user.update({ 
+      is_active,
+      deactivated_by_admin: !is_active 
+    });
     res.json({ success: true, message: `User status updated to ${is_active ? 'active' : 'inactive'}` });
   } catch (err) {
     console.error(err);
