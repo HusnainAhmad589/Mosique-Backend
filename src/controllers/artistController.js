@@ -1,5 +1,7 @@
 const { ArtistProfile, Album, Song, Category } = require('../models');
 const { validationResult } = require('express-validator');
+const path = require('path');
+const fs = require('fs');
 
 // --- ARTIST PROFILE ---
 
@@ -87,6 +89,58 @@ exports.createAlbum = async (req, res) => {
   }
 };
 
+exports.updateAlbumStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    
+    if (!['draft', 'published'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid status.' });
+    }
+
+    const album = await Album.findOne({ where: { id: req.params.id, artist_id: req.user.id } });
+    
+    if (!album) {
+      return res.status(404).json({ success: false, message: 'Album not found or access denied.' });
+    }
+
+    await album.update({ status });
+
+    res.status(200).json({ success: true, message: `Album status updated to ${status}.`, album });
+  } catch (error) {
+    console.error('Error updating album status:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+exports.deleteAlbum = async (req, res) => {
+  try {
+    const album = await Album.findOne({ where: { id: req.params.id, artist_id: req.user.id } });
+    
+    if (!album) {
+      return res.status(404).json({ success: false, message: 'Album not found or access denied.' });
+    }
+
+    // 1. Unlink songs (convert to singles)
+    await Song.update({ album_id: null }, { where: { album_id: album.id } });
+
+    // 2. Delete cover art from disk if it exists
+    if (album.cover_url) {
+      const filePath = path.join(__dirname, '../..', album.cover_url);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
+    // 3. Delete the album record
+    await album.destroy();
+
+    res.status(200).json({ success: true, message: 'Album deleted successfully.' });
+  } catch (error) {
+    console.error('Error deleting album:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
 
 // --- SONGS ---
 
@@ -170,5 +224,37 @@ exports.getArtistStats = async (req, res) => {
   } catch (err) {
     console.error('Artist getStats error:', err);
     return res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+};
+
+// --- DELETE SONG ---
+
+
+
+
+exports.deleteSong = async (req, res) => {
+  try {
+    const song = await Song.findOne({
+      where: { id: req.params.id, artist_id: req.user.id }
+    });
+
+    if (!song) {
+      return res.status(404).json({ success: false, message: 'Song not found or access denied.' });
+    }
+
+    // Delete the audio file from disk
+    if (song.audio_url) {
+      const filePath = path.join(__dirname, '../../', song.audio_url);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
+    await song.destroy();
+
+    res.status(200).json({ success: true, message: 'Song deleted successfully.' });
+  } catch (error) {
+    console.error('Error deleting song:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };

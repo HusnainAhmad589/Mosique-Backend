@@ -9,7 +9,7 @@ const register = async (req, res) => {
     return res.status(422).json({
       success: false,
       message: 'Validation failed.',
-      errors:  errors.array().map((e) => ({ field: e.path, message: e.msg })),
+      errors: errors.array().map((e) => ({ field: e.path, message: e.msg })),
     });
   }
 
@@ -28,6 +28,7 @@ const register = async (req, res) => {
       success: true,
       message: 'Account created successfully! Welcome to Mosique 🎵',
       user,
+      token,
     });
   } catch (err) {
     const status = err.status || 500;
@@ -46,7 +47,7 @@ const login = async (req, res) => {
     return res.status(422).json({
       success: false,
       message: 'Validation failed.',
-      errors:  errors.array().map((e) => ({ field: e.path, message: e.msg })),
+      errors: errors.array().map((e) => ({ field: e.path, message: e.msg })),
     });
   }
 
@@ -63,9 +64,10 @@ const login = async (req, res) => {
     });
 
     return res.status(200).json({
-      success:    true,
-      message:    'Login successful. Welcome back! 🎵',
+      success: true,
+      message: 'Login successful. Welcome back! 🎵',
       user,
+      token,
     });
   } catch (err) {
     const status = err.status || 500;
@@ -105,7 +107,7 @@ const logout = async (req, res) => {
 const getMe = async (req, res) => {
   try {
     const user = await authService.getUserProfile(req.user.id);
-    
+
     return res.status(200).json({
       success: true,
       user,
@@ -126,14 +128,14 @@ const changePassword = async (req, res) => {
     return res.status(422).json({
       success: false,
       message: 'Validation failed.',
-      errors:  errors.array().map((e) => ({ field: e.path, message: e.msg })),
+      errors: errors.array().map((e) => ({ field: e.path, message: e.msg })),
     });
   }
 
   try {
     const { old_password, new_password } = req.body;
     await authService.changeUserPassword(req.user.id, old_password, new_password);
-    
+
     return res.status(200).json({
       success: true,
       message: 'Password changed successfully.',
@@ -152,14 +154,14 @@ const forgotPassword = async (req, res) => {
     return res.status(422).json({
       success: false,
       message: 'Validation failed.',
-      errors:  errors.array().map((e) => ({ field: e.path, message: e.msg })),
+      errors: errors.array().map((e) => ({ field: e.path, message: e.msg })),
     });
   }
 
   try {
     const { email } = req.body;
     await authService.forgotPassword(email);
-    
+
     return res.status(200).json({
       success: true,
       message: 'If that email address is in our database, we will send you an email to reset your password.',
@@ -178,14 +180,14 @@ const resetPassword = async (req, res) => {
     return res.status(422).json({
       success: false,
       message: 'Validation failed.',
-      errors:  errors.array().map((e) => ({ field: e.path, message: e.msg })),
+      errors: errors.array().map((e) => ({ field: e.path, message: e.msg })),
     });
   }
 
   try {
     const { token, new_password } = req.body;
     await authService.resetPassword(token, new_password);
-    
+
     return res.status(200).json({
       success: true,
       message: 'Password has been reset successfully. You can now login.',
@@ -206,13 +208,13 @@ const updateProfile = async (req, res) => {
     return res.status(422).json({
       success: false,
       message: 'Validation failed.',
-      errors:  errors.array().map((e) => ({ field: e.path, message: e.msg })),
+      errors: errors.array().map((e) => ({ field: e.path, message: e.msg })),
     });
   }
 
   try {
     const updatedUser = await authService.updateUserProfile(req.user.id, req.body);
-    
+
     return res.status(200).json({
       success: true,
       message: 'Profile updated successfully.',
