@@ -7,6 +7,12 @@ module.exports = (sequelize, DataTypes) => {
       Song.belongsTo(models.User, { foreignKey: 'artist_id', as: 'Artist' });
       Song.belongsTo(models.Album, { foreignKey: 'album_id' });
       Song.belongsTo(models.Category, { foreignKey: 'category_id' });
+      Song.belongsToMany(models.Playlist, {
+        through: models.PlaylistSong,
+        foreignKey: 'song_id',
+        otherKey: 'playlist_id',
+        as: 'Playlists'
+      });
     }
   }
   
