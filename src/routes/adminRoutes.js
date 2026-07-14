@@ -26,4 +26,19 @@ router.put('/users/:id/status', requireRole('admin'), updateUserStatus);
 // GET /api/admin/stats
 router.get('/stats', requireRole('admin'), getStats);
 
+// PUT /api/admin/users/:id/verify
+router.put('/users/:id/verify', requireRole('admin'), require('../controllers/adminController').verifyUser);
+
+// GET /api/admin/catalog/songs
+router.get('/catalog/songs', requireRole('admin'), require('../controllers/adminController').getCatalogSongs);
+
+// GET /api/admin/catalog/albums
+router.get('/catalog/albums', requireRole('admin'), require('../controllers/adminController').getCatalogAlbums);
+
+// DELETE /api/admin/catalog/songs/:id
+router.delete('/catalog/songs/:id', requireRole('admin'), require('../controllers/adminController').deleteCatalogSong);
+
+// DELETE /api/admin/catalog/albums/:id
+router.delete('/catalog/albums/:id', requireRole('admin'), require('../controllers/adminController').deleteCatalogAlbum);
+
 module.exports = router;

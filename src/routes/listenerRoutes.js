@@ -12,7 +12,13 @@ const {
   deletePlaylist,
   saveAlbum,
   removeSavedAlbum,
-  getSavedAlbums
+  getSavedAlbums,
+  followArtist,
+  unfollowArtist,
+  getFollowing,
+  getArtistDetails,
+  addToHistory,
+  getHistory
 } = require('../controllers/listenerController');
 const { verifyToken, requireRole } = require('../middleware/authMiddleware');
 
@@ -47,5 +53,17 @@ router.post('/playlists', addToPlaylist);
 
 // DELETE /api/listener/playlists/:id
 router.delete('/playlists/:id', deletePlaylist);
+
+// --- Following Artists ---
+router.get('/following', getFollowing);
+router.post('/following/:artistId', followArtist);
+router.delete('/following/:artistId', unfollowArtist);
+
+// --- Artist Details (Public Profile) ---
+router.get('/artist/:artistId', getArtistDetails);
+
+// --- Listening History ---
+router.get('/history', getHistory);
+router.post('/history', addToHistory);
 
 module.exports = router;

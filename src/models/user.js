@@ -82,6 +82,10 @@ module.exports = (sequelize, DataTypes) => {
     deactivated_by_admin: {
       type: DataTypes.BOOLEAN,
       defaultValue: false
+    },
+    is_verified: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false
     }
   }, {
     sequelize,

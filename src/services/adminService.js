@@ -8,7 +8,7 @@ const getAllUsers = async () => {
   const users = await User.findAll({
     include: [{ model: Role, attributes: ['slug'], where: { slug: { [Op.notIn]: ['superadmin', 'admin'] } } }],
     order: [['id', 'DESC']],
-    attributes: ['id', 'username', 'email', 'display_name', 'is_active', 'created_at', 'avatar_url', 'address', 'dob', 'postal_code', 'phone_number', 'gender']
+    attributes: ['id', 'username', 'email', 'display_name', 'is_active', 'created_at', 'avatar_url', 'address', 'dob', 'postal_code', 'phone_number', 'gender', 'is_verified']
   });
 
   return users.map(u => ({
@@ -24,7 +24,8 @@ const getAllUsers = async () => {
     dob: u.dob,
     postal_code: u.postal_code,
     phone_number: u.phone_number,
-    gender: u.gender
+    gender: u.gender,
+    is_verified: u.is_verified
   }));
 };
 

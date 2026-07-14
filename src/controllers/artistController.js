@@ -199,7 +199,7 @@ exports.publishSong = async (req, res) => {
       audio_url,
       lyrics,
       track_number,
-      status: status || 'draft'
+      status: 'published'
     });
 
     res.status(201).json({ success: true, message: 'Song published successfully', song });

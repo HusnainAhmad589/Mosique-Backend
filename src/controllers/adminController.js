@@ -81,4 +81,108 @@ const updateUserStatus = async (req, res) => {
   }
 };
 
-module.exports = { getAllUsers, updateUserRole, updateUserStatus, getStats };
+const { User, Song, Album, Category } = require('../models');
+const fs = require('fs');
+const path = require('path');
+
+const verifyUser = async (req, res) => {
+  const userId = req.params.id;
+  const { is_verified } = req.body;
+
+  try {
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    await user.update({ is_verified });
+
+    return res.status(200).json({
+      success: true,
+      message: `User verification status updated to ${is_verified}.`,
+    });
+  } catch (err) {
+    console.error('Admin verifyUser error:', err);
+    return res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+};
+
+const getCatalogSongs = async (req, res) => {
+  try {
+    const songs = await Song.findAll({
+      include: [
+        { model: User, as: 'Artist', attributes: ['id', 'username'] },
+        { model: Album, attributes: ['id', 'title'] },
+        { model: Category, attributes: ['id', 'name'] }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+    res.json({ success: true, songs });
+  } catch (err) {
+    console.error('Admin getCatalogSongs error:', err);
+    res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+};
+
+const getCatalogAlbums = async (req, res) => {
+  try {
+    const albums = await Album.findAll({
+      include: [
+        { model: User, as: 'Artist', attributes: ['id', 'username'] }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+    res.json({ success: true, albums });
+  } catch (err) {
+    console.error('Admin getCatalogAlbums error:', err);
+    res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+};
+
+const deleteCatalogSong = async (req, res) => {
+  try {
+    const song = await Song.findByPk(req.params.id);
+    if (!song) return res.status(404).json({ success: false, message: 'Song not found.' });
+
+    if (song.audio_url) {
+      const filePath = path.join(__dirname, '../../', song.audio_url);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    }
+    await song.destroy();
+    res.json({ success: true, message: 'Song deleted successfully.' });
+  } catch (err) {
+    console.error('Admin deleteCatalogSong error:', err);
+    res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+};
+
+const deleteCatalogAlbum = async (req, res) => {
+  try {
+    const album = await Album.findByPk(req.params.id);
+    if (!album) return res.status(404).json({ success: false, message: 'Album not found.' });
+
+    await Song.update({ album_id: null }, { where: { album_id: album.id } });
+
+    if (album.cover_url) {
+      const filePath = path.join(__dirname, '../../', album.cover_url);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    }
+    await album.destroy();
+    res.json({ success: true, message: 'Album deleted successfully.' });
+  } catch (err) {
+    console.error('Admin deleteCatalogAlbum error:', err);
+    res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+};
+
+module.exports = { 
+  getAllUsers, 
+  updateUserRole, 
+  updateUserStatus, 
+  getStats,
+  verifyUser,
+  getCatalogSongs,
+  getCatalogAlbums,
+  deleteCatalogSong,
+  deleteCatalogAlbum
+};

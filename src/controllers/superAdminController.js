@@ -5,7 +5,7 @@ exports.getAllUsers = async (req, res) => {
   try {
     const users = await User.findAll({
       where: { is_deleted: false },
-      attributes: ['id', 'username', 'email', 'display_name', 'is_active', 'created_at', 'avatar_url', 'address', 'dob', 'postal_code', 'phone_number', 'gender'],
+      attributes: ['id', 'username', 'email', 'display_name', 'is_active', 'created_at', 'avatar_url', 'address', 'dob', 'postal_code', 'phone_number', 'gender', 'is_verified'],
       include: [{ model: Role, attributes: ['id', 'name', 'slug'] }]
     });
     res.json({ success: true, users });

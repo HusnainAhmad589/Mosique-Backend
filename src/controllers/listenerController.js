@@ -1,5 +1,5 @@
 
-const { Song, User, Album, Category, Playlist, PlaylistSong, FavoriteSong, SavedAlbum } = require('../models');
+const { Song, User, Album, Category, Playlist, PlaylistSong, FavoriteSong, SavedAlbum, ArtistFollow, ArtistProfile, Role, ListeningHistory } = require('../models');
 const { Op } = require('sequelize');
 
 //  GET /api/listener/feed
@@ -33,7 +33,7 @@ const getFeed = async (req, res) => {
         {
           model: User,
           as: 'Artist',
-          attributes: ['id', 'username', 'display_name', 'avatar_url'],
+          attributes: ['id', 'username', 'display_name', 'avatar_url', 'is_verified'],
         },
         {
           model: Album,
@@ -54,6 +54,7 @@ const getFeed = async (req, res) => {
       artist_name: song.Artist?.display_name || song.Artist?.username || 'Unknown Artist',
       artist_id: song.Artist?.id,
       artist_profile_picture: song.Artist?.avatar_url || null,
+      is_verified: song.Artist?.is_verified || false,
       audio_url: song.audio_url,
       album_title: song.Album?.title || null,
       cover_url: song.Album?.cover_url || null,
@@ -111,7 +112,7 @@ const getFavorites = async (req, res) => {
       include: [{
         model: Song,
         include: [
-          { model: User, as: 'Artist', attributes: ['id', 'username', 'display_name', 'avatar_url'] },
+          { model: User, as: 'Artist', attributes: ['id', 'username', 'display_name', 'avatar_url', 'is_verified'] },
           { model: Album, attributes: ['id', 'title', 'cover_url'] },
           { model: Category, attributes: ['id', 'name'] },
         ]
@@ -128,6 +129,7 @@ const getFavorites = async (req, res) => {
         artist_name: song.Artist?.display_name || song.Artist?.username || 'Unknown Artist',
         artist_id: song.Artist?.id,
         artist_profile_picture: song.Artist?.avatar_url || null,
+        is_verified: song.Artist?.is_verified || false,
         audio_url: song.audio_url,
         album_title: song.Album?.title || null,
         cover_url: song.Album?.cover_url || null,
@@ -178,7 +180,7 @@ const getSavedAlbums = async (req, res) => {
       where: { user_id: req.user.id },
       include: [{
         model: Album,
-        include: [{ model: User, as: 'Artist', attributes: ['id', 'username', 'display_name', 'avatar_url'] }]
+        include: [{ model: User, as: 'Artist', attributes: ['id', 'username', 'display_name', 'avatar_url', 'is_verified'] }]
       }],
       order: [['created_at', 'DESC']]
     });
@@ -194,7 +196,8 @@ const getSavedAlbums = async (req, res) => {
         release_date: album.release_date,
         artist_name: album.Artist?.display_name || album.Artist?.username || 'Unknown',
         artist_id: album.Artist?.id,
-        artist_avatar: album.Artist?.avatar_url
+        artist_avatar: album.Artist?.avatar_url,
+        is_verified: album.Artist?.is_verified || false
       }
     }).filter(a => a !== null);
 
@@ -216,7 +219,7 @@ const getAlbums = async (req, res) => {
         {
           model: User,
           as: 'Artist',
-          attributes: ['id', 'username', 'display_name'],
+          attributes: ['id', 'username', 'display_name', 'avatar_url', 'is_verified'],
         },
       ],
       order: [['created_at', 'DESC']],
@@ -229,6 +232,8 @@ const getAlbums = async (req, res) => {
       release_date: album.release_date,
       artist_name: album.Artist?.display_name || album.Artist?.username || 'Unknown Artist',
       artist_id: album.Artist?.id,
+      artist_avatar: album.Artist?.avatar_url || null,
+      is_verified: album.Artist?.is_verified || false,
       created_at: album.created_at,
     }));
 
@@ -355,6 +360,233 @@ const deletePlaylist = async (req, res) => {
   }
 };
 
+// --- Following Artists ---
+
+const followArtist = async (req, res) => {
+  try {
+    const followerId = req.user.id;
+    const { artistId } = req.params;
+
+    if (followerId == artistId) {
+      return res.status(400).json({ success: false, message: "You cannot follow yourself." });
+    }
+
+    const artist = await User.findByPk(artistId, { include: [{ model: Role }] });
+    if (!artist || artist.Role?.slug !== 'artist') {
+      return res.status(404).json({ success: false, message: 'Artist not found.' });
+    }
+
+    const [follow, created] = await ArtistFollow.findOrCreate({
+      where: { follower_id: followerId, artist_id: artistId }
+    });
+
+    if (!created) {
+      return res.status(400).json({ success: false, message: 'Already following this artist.' });
+    }
+
+    return res.status(200).json({ success: true, message: 'Successfully followed artist.' });
+  } catch (err) {
+    console.error('followArtist error:', err);
+    return res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+};
+
+const unfollowArtist = async (req, res) => {
+  try {
+    const followerId = req.user.id;
+    const { artistId } = req.params;
+
+    const deletedCount = await ArtistFollow.destroy({
+      where: { follower_id: followerId, artist_id: artistId }
+    });
+
+    if (deletedCount === 0) {
+      return res.status(404).json({ success: false, message: 'You are not following this artist.' });
+    }
+
+    return res.status(200).json({ success: true, message: 'Successfully unfollowed artist.' });
+  } catch (err) {
+    console.error('unfollowArtist error:', err);
+    return res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+};
+
+const getFollowing = async (req, res) => {
+  try {
+    const followerId = req.user.id;
+    
+    const follows = await ArtistFollow.findAll({
+      where: { follower_id: followerId },
+      include: [
+        {
+          model: User,
+          as: 'Artist',
+          attributes: ['id', 'username', 'display_name', 'avatar_url', 'is_verified']
+        }
+      ]
+    });
+
+    const following = follows.map(f => ({
+      id: f.Artist.id,
+      name: f.Artist.display_name || f.Artist.username,
+      profilePicture: f.Artist.avatar_url,
+      is_verified: f.Artist.is_verified || false
+    }));
+
+    return res.status(200).json({ success: true, following });
+  } catch (err) {
+    console.error('getFollowing error:', err);
+    return res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+};
+
+// --- View Artist Details ---
+
+const getArtistDetails = async (req, res) => {
+  try {
+    const { artistId } = req.params;
+
+    const artist = await User.findOne({
+      where: { id: artistId },
+      attributes: ['id', 'username', 'display_name', 'avatar_url', 'is_verified', 'created_at']
+    });
+
+    if (!artist) {
+      return res.status(404).json({ success: false, message: 'Artist not found.' });
+    }
+
+    const profile = await ArtistProfile.findOne({ where: { user_id: artistId } });
+
+    const songs = await Song.findAll({
+      where: { artist_id: artistId },
+      include: [
+        { model: Album, attributes: ['id', 'title', 'cover_url'] },
+        { model: Category, attributes: ['id', 'name'] }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    const albums = await Album.findAll({
+      where: { artist_id: artistId, status: 'published' },
+      order: [['created_at', 'DESC']]
+    });
+
+    const followerCount = await ArtistFollow.count({ where: { artist_id: artistId } });
+
+    return res.status(200).json({
+      success: true,
+      artist: {
+        id: artist.id,
+        username: artist.username,
+        display_name: artist.display_name,
+        avatar_url: artist.avatar_url,
+        is_verified: artist.is_verified,
+        joined: artist.created_at,
+        bio: profile?.bio || null,
+        banner_url: profile?.banner_url || null,
+        twitter_url: profile?.twitter_url || null,
+        instagram_url: profile?.instagram_url || null,
+        spotify_url: profile?.spotify_url || null,
+        follower_count: followerCount,
+        song_count: songs.length,
+        album_count: albums.length,
+        songs: songs.map(s => ({
+          id: s.id,
+          title: s.title,
+          audio_url: s.audio_url,
+          duration: s.duration,
+          cover_url: s.Album?.cover_url || null,
+          album_title: s.Album?.title || null,
+          category_name: s.Category?.name || null,
+          created_at: s.created_at
+        })),
+        albums: albums.map(a => ({
+          id: a.id,
+          title: a.title,
+          cover_url: a.cover_url,
+          release_date: a.release_date
+        }))
+      }
+    });
+  } catch (err) {
+    console.error('getArtistDetails error:', err);
+    return res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+};
+
+// --- Listening History ---
+
+const addToHistory = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { songId } = req.body;
+
+    if (!songId) {
+      return res.status(400).json({ success: false, message: 'songId is required.' });
+    }
+
+    const song = await Song.findByPk(songId);
+    if (!song) {
+      return res.status(404).json({ success: false, message: 'Song not found.' });
+    }
+
+    // Upsert: create if new, update played_at if already exists
+    const [record, created] = await ListeningHistory.findOrCreate({
+      where: { user_id: userId, song_id: songId },
+      defaults: { played_at: new Date() }
+    });
+
+    if (!created) {
+      await record.update({ played_at: new Date() });
+    }
+
+    return res.status(200).json({ success: true, message: 'History updated.' });
+  } catch (err) {
+    console.error('addToHistory error:', err);
+    return res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+};
+
+const getHistory = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const history = await ListeningHistory.findAll({
+      where: { user_id: userId },
+      include: [
+        {
+          model: Song,
+          as: 'Song',
+          attributes: ['id', 'title', 'audio_url', 'duration'],
+          include: [
+            { model: User, as: 'Artist', attributes: ['id', 'username', 'display_name', 'avatar_url'] },
+            { model: Album, attributes: ['id', 'title', 'cover_url'] }
+          ]
+        }
+      ],
+      order: [['played_at', 'DESC']],
+      limit: 50
+    });
+
+    const songs = history.map(h => ({
+      id: h.Song.id,
+      title: h.Song.title,
+      audio_url: h.Song.audio_url,
+      cover_url: h.Song.Album?.cover_url || null,
+      duration: h.Song.duration,
+      artist_name: h.Song.Artist?.display_name || h.Song.Artist?.username || 'Unknown',
+      artist_id: h.Song.Artist?.id,
+      album_title: h.Song.Album?.title || null,
+      played_at: h.played_at
+    }));
+
+    return res.status(200).json({ success: true, history: songs });
+  } catch (err) {
+    console.error('getHistory error:', err);
+    return res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+};
+
 module.exports = {
   getFeed,
   getAlbums,
@@ -366,5 +598,11 @@ module.exports = {
   getFavorites,
   saveAlbum,
   removeSavedAlbum,
-  getSavedAlbums
+  getSavedAlbums,
+  followArtist,
+  unfollowArtist,
+  getFollowing,
+  getArtistDetails,
+  addToHistory,
+  getHistory
 };
