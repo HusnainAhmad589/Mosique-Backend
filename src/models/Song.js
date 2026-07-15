@@ -13,6 +13,7 @@ module.exports = (sequelize, DataTypes) => {
         otherKey: 'playlist_id',
         as: 'Playlists'
       });
+      Song.belongsTo(models.User, { foreignKey: 'reviewed_by', as: 'Reviewer' });
     }
   }
   
@@ -53,9 +54,24 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
       defaultValue: 0
     },
+    likes_count: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0
+    },
     status: {
-      type: DataTypes.ENUM('draft', 'published'),
-      defaultValue: 'published'
+      type: DataTypes.ENUM('draft', 'pending_review', 'scheduled', 'published', 'archived'),
+      defaultValue: 'draft' // Changed default from 'published' to 'draft' since it makes more sense for a lifecycle
+    },
+    scheduled_at: DataTypes.DATE,
+    archived_at: DataTypes.DATE,
+    rejection_reason: DataTypes.TEXT,
+    reviewed_by: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'id'
+      }
     }
   }, {
     sequelize,

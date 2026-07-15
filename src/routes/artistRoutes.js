@@ -35,9 +35,13 @@ router.post('/albums', uploadImage.single('artwork'), createAlbum);
 router.put('/albums/:id/status', updateAlbumStatus);
 router.delete('/albums/:id', deleteAlbum);
 
+// --- Content Lifecycle ---
+router.get('/content', require('../controllers/artistController').getContentByStatus);
+
 // --- Songs ---
 router.get('/songs', getSongs);
 router.post('/songs', uploadAudio.single('audio'), publishSong);
+router.put('/songs/:id/status', require('../controllers/artistController').updateSongStatus);
 router.delete('/songs/:id', deleteSong);
 
 // --- Stats (Placeholder) ---

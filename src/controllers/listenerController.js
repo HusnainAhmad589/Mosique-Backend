@@ -10,7 +10,7 @@ const getFeed = async (req, res) => {
   try {
     const { search, category, albumId } = req.query;
 
-    const where = {};
+    const where = { status: 'published' };
 
     // Optional search filter (by song title)
     if (search) {
@@ -62,6 +62,7 @@ const getFeed = async (req, res) => {
       duration: song.duration,
       play_count: song.play_count,
       created_at: song.created_at,
+      likes_count: song.likes_count
     }));
 
     return res.status(200).json({
@@ -87,6 +88,7 @@ const addFavorite = async (req, res) => {
     if (!created) {
       return res.status(400).json({ success: false, message: 'Song already in favorites' });
     }
+    await Song.increment('likes_count', { by: 1, where: { id: trackId } });
     return res.status(200).json({ success: true, message: `Added to favorites!` });
   } catch (err) {
     console.error('Listener addFavorite error:', err);
@@ -97,7 +99,13 @@ const addFavorite = async (req, res) => {
 const removeFavorite = async (req, res) => {
   const { id } = req.params;
   try {
-    await FavoriteSong.destroy({ where: { user_id: req.user.id, song_id: id } });
+    const deletedCount = await FavoriteSong.destroy({ where: { user_id: req.user.id, song_id: id } });
+    if (deletedCount > 0) {
+      const song = await Song.findByPk(id);
+      if (song && song.likes_count > 0) {
+        await song.decrement('likes_count', { by: 1 });
+      }
+    }
     return res.status(200).json({ success: true, message: 'Removed from favorites' });
   } catch (err) {
     console.error('Listener removeFavorite error:', err);
@@ -137,6 +145,7 @@ const getFavorites = async (req, res) => {
         duration: song.duration,
         play_count: song.play_count,
         created_at: song.created_at,
+        likes_count: song.likes_count
       }
     }).filter(s => s !== null);
 
@@ -288,6 +297,7 @@ const getPlaylists = async (req, res) => {
         artist_name: song.Artist?.display_name || song.Artist?.username || 'Unknown Artist',
         artist_id: song.Artist?.id,
         category_name: song.Category?.name || 'Uncategorized',
+        likes_count: song.likes_count
       }))
     }));
 
@@ -498,7 +508,8 @@ const getArtistDetails = async (req, res) => {
           cover_url: s.Album?.cover_url || null,
           album_title: s.Album?.title || null,
           category_name: s.Category?.name || null,
-          created_at: s.created_at
+          created_at: s.created_at,
+          likes_count: s.likes_count
         })),
         albums: albums.map(a => ({
           id: a.id,
@@ -557,7 +568,7 @@ const getHistory = async (req, res) => {
         {
           model: Song,
           as: 'Song',
-          attributes: ['id', 'title', 'audio_url', 'duration'],
+          attributes: ['id', 'title', 'audio_url', 'duration', 'likes_count'],
           include: [
             { model: User, as: 'Artist', attributes: ['id', 'username', 'display_name', 'avatar_url'] },
             { model: Album, attributes: ['id', 'title', 'cover_url'] }
@@ -577,13 +588,31 @@ const getHistory = async (req, res) => {
       artist_name: h.Song.Artist?.display_name || h.Song.Artist?.username || 'Unknown',
       artist_id: h.Song.Artist?.id,
       album_title: h.Song.Album?.title || null,
-      played_at: h.played_at
+      played_at: h.played_at,
+      likes_count: h.Song.likes_count
     }));
 
     return res.status(200).json({ success: true, history: songs });
   } catch (err) {
     console.error('getHistory error:', err);
     return res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+};
+
+const recordPlay = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const song = await Song.findByPk(id);
+    if (!song) {
+      return res.status(404).json({ success: false, message: 'Song not found' });
+    }
+    
+    await song.increment('play_count', { by: 1 });
+    
+    return res.status(200).json({ success: true, message: 'Play recorded' });
+  } catch (err) {
+    console.error('recordPlay error:', err);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
 
@@ -604,5 +633,6 @@ module.exports = {
   getFollowing,
   getArtistDetails,
   addToHistory,
-  getHistory
+  getHistory,
+  recordPlay
 };

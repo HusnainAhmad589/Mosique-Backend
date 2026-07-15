@@ -18,7 +18,8 @@ const {
   getFollowing,
   getArtistDetails,
   addToHistory,
-  getHistory
+  getHistory,
+  recordPlay
 } = require('../controllers/listenerController');
 const { verifyToken, requireRole } = require('../middleware/authMiddleware');
 
@@ -34,6 +35,9 @@ router.get('/feed', getFeed);
 
 // GET /api/listener/albums
 router.get('/albums', getAlbums);
+
+// POST /api/listener/play/:id
+router.post('/play/:id', recordPlay);
 
 // --- Favorites (Songs) ---
 router.get('/favorites', getFavorites);

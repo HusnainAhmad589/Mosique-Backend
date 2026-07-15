@@ -72,13 +72,14 @@ exports.createAlbum = async (req, res) => {
     const { title, description, release_date, status } = req.body;
     
     const cover_url = req.file ? `/uploads/artwork/${req.file.filename}` : null;
+    const initialStatus = ['draft', 'pending_review', 'published'].includes(status) ? status : 'draft';
 
     const album = await Album.create({
       artist_id: req.user.id,
       title,
       description,
       release_date,
-      status: status || 'draft',
+      status: initialStatus,
       cover_url
     });
 
@@ -89,26 +90,24 @@ exports.createAlbum = async (req, res) => {
   }
 };
 
+const contentLifecycleService = require('../services/contentLifecycleService');
+
 exports.updateAlbumStatus = async (req, res) => {
   try {
-    const { status } = req.body;
+    const { status, scheduled_at } = req.body;
     
-    if (!['draft', 'published'].includes(status)) {
-      return res.status(400).json({ success: false, message: 'Invalid status.' });
-    }
-
     const album = await Album.findOne({ where: { id: req.params.id, artist_id: req.user.id } });
     
     if (!album) {
       return res.status(404).json({ success: false, message: 'Album not found or access denied.' });
     }
 
-    await album.update({ status });
+    const updatedAlbum = await contentLifecycleService.transitionStatus(album, status, req.user, { scheduled_at });
 
-    res.status(200).json({ success: true, message: `Album status updated to ${status}.`, album });
+    res.status(200).json({ success: true, message: `Album status updated to ${status}.`, album: updatedAlbum });
   } catch (error) {
     console.error('Error updating album status:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    res.status(error.status || 500).json({ success: false, message: error.message || 'Internal server error' });
   }
 };
 
@@ -190,6 +189,8 @@ exports.publishSong = async (req, res) => {
 
     const audio_url = `/uploads/audio/${req.file.filename}`;
 
+    const initialStatus = ['draft', 'pending_review', 'published'].includes(status) ? status : 'draft';
+
     const song = await Song.create({
       artist_id: req.user.id,
       album_id: album_id || null,
@@ -199,12 +200,59 @@ exports.publishSong = async (req, res) => {
       audio_url,
       lyrics,
       track_number,
-      status: 'published'
+      status: initialStatus
     });
 
     res.status(201).json({ success: true, message: 'Song published successfully', song });
   } catch (error) {
     console.error('Error publishing song:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+exports.updateSongStatus = async (req, res) => {
+  try {
+    const { status, scheduled_at } = req.body;
+    
+    const song = await Song.findOne({ where: { id: req.params.id, artist_id: req.user.id } });
+    
+    if (!song) {
+      return res.status(404).json({ success: false, message: 'Song not found or access denied.' });
+    }
+
+    const updatedSong = await contentLifecycleService.transitionStatus(song, status, req.user, { scheduled_at });
+
+    res.status(200).json({ success: true, message: `Song status updated to ${status}.`, song: updatedSong });
+  } catch (error) {
+    console.error('Error updating song status:', error);
+    res.status(error.status || 500).json({ success: false, message: error.message || 'Internal server error' });
+  }
+};
+
+exports.getContentByStatus = async (req, res) => {
+  try {
+    const { status } = req.query;
+    if (!status) {
+      return res.status(400).json({ success: false, message: 'Status query parameter is required' });
+    }
+
+    const songs = await Song.findAll({
+      where: { artist_id: req.user.id, status },
+      include: [
+        { model: Album, attributes: ['id', 'title'] },
+        { model: Category, attributes: ['id', 'name'] }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    const albums = await Album.findAll({
+      where: { artist_id: req.user.id, status },
+      order: [['created_at', 'DESC']]
+    });
+
+    res.status(200).json({ success: true, songs, albums });
+  } catch (error) {
+    console.error('Error fetching content by status:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
