@@ -23,7 +23,10 @@ const verifyToken = async (req, res, next) => {
     let token = null;
     const authHeader = req.headers['authorization'];
     if (authHeader && authHeader.startsWith('Bearer ')) {
-      token = authHeader.split(' ')[1];
+      const candidate = authHeader.split(' ')[1];
+      if (candidate && candidate !== 'null' && candidate !== 'undefined' && candidate !== 'bearer') {
+        token = candidate;
+      }
     }
     if (!token && req.cookies?.mosique_token) {
       token = req.cookies.mosique_token;

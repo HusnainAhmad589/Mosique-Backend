@@ -47,7 +47,12 @@ module.exports = (sequelize, DataTypes) => {
     underscored: true,
     timestamps: true,
     createdAt: 'created_at',
-    updatedAt: 'updated_at'
+    updatedAt: 'updated_at',
+    indexes: [
+      { fields: ['artist_id'] },
+      { fields: ['status'] },
+      { fields: ['release_date'] }
+    ]
   });
   
   return Album;

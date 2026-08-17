@@ -30,7 +30,11 @@ module.exports = (sequelize, DataTypes) => {
     tableName: 'favorite_songs',
     timestamps: true,
     createdAt: 'created_at',
-    updatedAt: 'updated_at'
+    updatedAt: 'updated_at',
+    indexes: [
+      { unique: true, fields: ['user_id', 'song_id'] },
+      { fields: ['song_id'] }
+    ]
   });
   return FavoriteSong;
 };

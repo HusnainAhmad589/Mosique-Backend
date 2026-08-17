@@ -41,7 +41,12 @@ module.exports = (sequelize, DataTypes) => {
     modelName: 'ListeningHistory',
     tableName: 'listening_history',
     underscored: true,
-    timestamps: false // we only care about played_at
+    timestamps: false, // we only care about played_at
+    indexes: [
+      { fields: ['user_id'] },
+      { fields: ['song_id'] },
+      { fields: ['played_at'] }
+    ]
   });
 
   return ListeningHistory;
