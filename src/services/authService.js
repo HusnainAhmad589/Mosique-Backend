@@ -354,7 +354,7 @@ const deleteAccount = async (userId, password) => {
     throw error;
   }
 
-  const isMatch = await bcrypt.compare(password, user.password);
+  const isMatch = await bcrypt.compare(password, user.password_hash);
   if (!isMatch) {
     const error = new Error('Incorrect password.');
     error.status = 401;

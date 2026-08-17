@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
 
-const { 
-  getFeed, 
-  addFavorite, 
+const {
+  getFeed,
+  addFavorite,
   removeFavorite,
   getFavorites,
-  getAlbums, 
-  getPlaylists, 
+  getAlbums,
+  getPlaylists,
   addToPlaylist,
   deletePlaylist,
   saveAlbum,
@@ -37,17 +37,17 @@ router.get('/feed', getFeed);
 router.get('/albums', getAlbums);
 
 // POST /api/listener/play/:id
-router.post('/play/:id', recordPlay);
+// router.post('/play/:id', recordPlay);
 
 // --- Favorites (Songs) ---
-router.get('/favorites', getFavorites);
+// router.get('/favorites', getFavorites);
 router.post('/favorites', addFavorite);
-router.delete('/favorites/:id', removeFavorite);
+// router.delete('/favorites/:id', removeFavorite);
 
 // --- Saved Albums ---
-router.get('/saved-albums', getSavedAlbums);
-router.post('/saved-albums', saveAlbum);
-router.delete('/saved-albums/:id', removeSavedAlbum);
+// router.get('/saved-albums', getSavedAlbums);
+// router.post('/saved-albums', saveAlbum);
+// router.delete('/saved-albums/:id', removeSavedAlbum);
 
 // --- Playlists ---
 router.get('/playlists', getPlaylists);
@@ -56,18 +56,18 @@ router.get('/playlists', getPlaylists);
 router.post('/playlists', addToPlaylist);
 
 // DELETE /api/listener/playlists/:id
-router.delete('/playlists/:id', deletePlaylist);
+// router.delete('/playlists/:id', deletePlaylist);
 
-// --- Following Artists ---
-router.get('/following', getFollowing);
-router.post('/following/:artistId', followArtist);
-router.delete('/following/:artistId', unfollowArtist);
+// // --- Following Artists ---
+// router.get('/following', getFollowing);
+// router.post('/following/:artistId', followArtist);
+// router.delete('/following/:artistId', unfollowArtist);
 
-// --- Artist Details (Public Profile) ---
-router.get('/artist/:artistId', getArtistDetails);
+// // --- Artist Details (Public Profile) ---
+// router.get('/artist/:artistId', getArtistDetails);
 
-// --- Listening History ---
-router.get('/history', getHistory);
-router.post('/history', addToHistory);
+// // --- Listening History ---
+// router.get('/history', getHistory);
+// router.post('/history', addToHistory);
 
 module.exports = router;

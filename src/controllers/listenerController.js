@@ -184,13 +184,13 @@ const getPlaylists = async (req, res) => {
 const addToPlaylist = async (req, res) => {
   try {
     const { name, songId } = req.body;
-    
+
     if (!name || !songId) {
       return res.status(400).json({ success: false, message: 'Playlist name and song ID are required.' });
     }
 
     // Ensure song exists and is published
-    const song = await Song.findOne({ where: { id: songId, status: 'published' }});
+    const song = await Song.findOne({ where: { id: songId, status: 'published' } });
     if (!song) {
       return res.status(404).json({ success: false, message: 'Song not found.' });
     }

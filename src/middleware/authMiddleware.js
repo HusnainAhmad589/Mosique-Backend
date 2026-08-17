@@ -19,14 +19,14 @@ const hashToken = (token) =>
  */
 const verifyToken = async (req, res, next) => {
   try {
-    // Read token from HttpOnly cookie (preferred) or Authorization header (fallback)
-    let token = req.cookies?.mosique_token;
-
-    if (!token) {
-      const authHeader = req.headers['authorization'];
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        token = authHeader.split(' ')[1];
-      }
+    // Read token from Authorization header (preferred) or HttpOnly cookie (fallback)
+    let token = null;
+    const authHeader = req.headers['authorization'];
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    }
+    if (!token && req.cookies?.mosique_token) {
+      token = req.cookies.mosique_token;
     }
 
     if (!token) {
@@ -41,16 +41,29 @@ const verifyToken = async (req, res, next) => {
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
     } catch (err) {
-      if (err.name === 'TokenExpiredError') {
+      // If header token fails and cookie exists, try cookie as fallback
+      if (authHeader && req.cookies?.mosique_token && token !== req.cookies.mosique_token) {
+        try {
+          token = req.cookies.mosique_token;
+          decoded = jwt.verify(token, process.env.JWT_SECRET);
+        } catch (cookieErr) {
+          if (cookieErr.name === 'TokenExpiredError' || err.name === 'TokenExpiredError') {
+            return res.status(401).json({ success: false, message: 'Session expired. Please log in again.' });
+          }
+          return res.status(401).json({ success: false, message: 'Invalid token.' });
+        }
+      } else {
+        if (err.name === 'TokenExpiredError') {
+          return res.status(401).json({
+            success: false,
+            message: 'Session expired. Please log in again.',
+          });
+        }
         return res.status(401).json({
           success: false,
-          message: 'Session expired. Please log in again.',
+          message: 'Invalid token.',
         });
       }
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid token.',
-      });
     }
 
     // 2️⃣  Check token blacklist (has user logged out?)
@@ -83,13 +96,12 @@ const verifyToken = async (req, res, next) => {
     }
 
     // Attach user info to the request object
-    // Transform to match the old raw SQL output structure for compatibility
     req.user = {
       id: user.id,
       username: user.username,
       email: user.email,
       is_active: user.is_active,
-      role: user.Role.slug
+      role: user.Role ? user.Role.slug : 'listener'
     };
     req.token = token; // needed by logout
     next();
@@ -100,29 +112,29 @@ const verifyToken = async (req, res, next) => {
 };
 
 /**
+ * Helper to normalize role slug strings (removes spaces, underscores and converts to lowercase).
+ */
+const normalizeRole = (role) => {
+  if (!role) return '';
+  const r = String(role).toLowerCase().replace(/[\s_]+/g, '');
+  if (r === 'superadmin') return 'superadmin';
+  return r;
+};
+
+/**
  * Role hierarchy — higher roles inherit all permissions of lower roles.
- *
- *   superAdmin  (level 5) → can access everything
- *   admin       (level 4) → can access admin, moderator, artist, listener
- *   moderator   (level 3) → can access moderator, artist, listener
- *   artist      (level 2) → can access artist, listener
- *   listener    (level 1) → can access listener only
  */
 const ROLE_HIERARCHY = {
   listener:   1,
   artist:     2,
   moderator:  3,
   admin:      4,
+  superadmin: 5,
   superAdmin: 5,
 };
 
 /**
  * requireRole  —  Restrict access to specific roles using hierarchy.
- *
- * Usage:
- *   requireRole('admin')              → admin + superAdmin can access
- *   requireRole('artist')             → artist + moderator + admin + superAdmin
- *   requireRole('superAdmin', true)   → ONLY superAdmin (exact match, no hierarchy)
  */
 const requireRole = (minimumRole, exactMatch = false) => (req, res, next) => {
   if (!req.user || !req.user.role) {
@@ -132,12 +144,15 @@ const requireRole = (minimumRole, exactMatch = false) => (req, res, next) => {
     });
   }
 
-  const userLevel    = ROLE_HIERARCHY[req.user.role] || 0;
-  const requiredLevel = ROLE_HIERARCHY[minimumRole]  || 0;
+  const userRoleNorm = normalizeRole(req.user.role);
+  const minRoleNorm  = normalizeRole(minimumRole);
 
-  // Exact match mode: only the specific role is allowed (used for superAdmin-only actions)
+  const userLevel     = ROLE_HIERARCHY[userRoleNorm] || 0;
+  const requiredLevel = ROLE_HIERARCHY[minRoleNorm]  || 0;
+
+  // Exact match mode
   if (exactMatch) {
-    if (req.user.role !== minimumRole) {
+    if (userRoleNorm !== minRoleNorm) {
       return res.status(403).json({
         success: false,
         message: 'Forbidden. You do not have permission to access this resource.',
