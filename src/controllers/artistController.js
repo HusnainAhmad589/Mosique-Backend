@@ -210,3 +210,10 @@ exports.getAlbums = artistAlbumController.getAlbums;
 exports.createAlbum = artistAlbumController.createAlbum;
 exports.updateAlbumStatus = artistAlbumController.updateAlbumStatus;
 exports.deleteAlbum = artistAlbumController.deleteAlbum;
+
+// Moderator Exports
+const artistModeratorController = require('./artist/artistModeratorController');
+exports.getModerators = artistModeratorController.getModerators;
+exports.addModerator = artistModeratorController.addModerator;
+exports.removeModerator = artistModeratorController.removeModerator;
+

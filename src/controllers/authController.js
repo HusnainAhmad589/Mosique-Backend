@@ -55,6 +55,8 @@ const login = async (req, res) => {
     const { email, password } = req.body;
     const { token, user } = await authService.loginUser(email, password);
 
+    // console.log("Token: ", token);
+
     // Set token as an HttpOnly cookie (not accessible by JavaScript)
     res.cookie('mosique_token', token, {
       httpOnly: true,
