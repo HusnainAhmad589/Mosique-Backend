@@ -95,9 +95,16 @@ const getDashboardStats = async () => {
     include: [{ model: Role, attributes: ['slug'] }]
   });
 
+  let onlineStats = { totalOnline: 0, users: [] };
+  try {
+    const { getOnlineUsers } = require('./presenceService');
+    onlineStats = await getOnlineUsers();
+  } catch (e) {}
+
   const stats = {
     totalUsers: users.length,
     activeUsers: users.filter(u => u.is_active).length,
+    onlineUsers: onlineStats.totalOnline,
     listeners: users.filter(u => u.Role?.slug === 'listener').length,
     artists: users.filter(u => u.Role?.slug === 'artist').length,
     moderators: users.filter(u => u.Role?.slug === 'moderator').length
@@ -110,7 +117,7 @@ const getDashboardStats = async () => {
     attributes: ['id', 'username', 'email', 'created_at', 'avatar_url', 'is_active']
   });
 
-  return { ...stats, recentUsers };
+  return { ...stats, recentUsers, onlineUsersList: onlineStats.users };
 };
 
 const createAdminUser = async (username, email, providedPassword = null) => {

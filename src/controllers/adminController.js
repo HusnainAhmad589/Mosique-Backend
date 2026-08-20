@@ -110,8 +110,9 @@ const verifyUser = async (req, res) => {
 const getCatalogSongs = async (req, res) => {
   try {
     const songs = await Song.findAll({
+      attributes: ['id', 'title', 'status', 'duration', 'play_count', 'lyrics_status', 'rejection_reason', 'created_at', 'audio_url'],
       include: [
-        { model: User, as: 'Artist', attributes: ['id', 'username'] },
+        { model: User, as: 'Artist', attributes: ['id', 'username', 'display_name'] },
         { model: Album, attributes: ['id', 'title'] },
         { model: Category, attributes: ['id', 'name'] }
       ],
@@ -136,6 +137,54 @@ const getCatalogAlbums = async (req, res) => {
   } catch (err) {
     console.error('Admin getCatalogAlbums error:', err);
     res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+};
+
+const unpublishCatalogSong = async (req, res) => {
+  try {
+    const songId = req.params.id;
+    const { reason } = req.body;
+
+    const song = await Song.findByPk(songId, {
+      include: [{ model: User, as: 'Artist', attributes: ['id', 'username', 'email'] }]
+    });
+
+    if (!song) {
+      return res.status(404).json({ success: false, message: 'Song not found.' });
+    }
+
+    const authorityReason = reason && reason.trim() 
+      ? reason.trim() 
+      : 'Removed by platform authority for policy violation.';
+
+    song.status = 'archived';
+    song.rejection_reason = `Removed by Authority: ${authorityReason}`;
+    song.reviewed_by = req.user.id;
+    song.archived_at = new Date();
+    await song.save();
+
+    // Create Notification for the artist
+    try {
+      const { Notification } = require('../models');
+      await Notification.create({
+        user_id: song.artist_id,
+        type: 'warning',
+        title: 'Song Unpublished by Authority',
+        message: `Your song "${song.title}" was unpublished by administration. Reason: ${authorityReason}`,
+        metadata: { songId: song.id, reason: authorityReason }
+      });
+    } catch (notifErr) {
+      console.warn('Failed to create artist notification:', notifErr);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Song "${song.title}" unpublished successfully by authority.`,
+      song
+    });
+  } catch (err) {
+    console.error('Admin unpublishCatalogSong error:', err);
+    return res.status(500).json({ success: false, message: 'Internal server error.' });
   }
 };
 
@@ -175,6 +224,21 @@ const deleteCatalogAlbum = async (req, res) => {
   }
 };
 
+const getOnlineUsers = async (req, res) => {
+  try {
+    const { getOnlineUsers: fetchOnline } = require('../services/presenceService');
+    const result = await fetchOnline();
+    return res.status(200).json({
+      success: true,
+      totalOnline: result.totalOnline,
+      users: result.users
+    });
+  } catch (err) {
+    console.error('Admin getOnlineUsers error:', err);
+    return res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+};
+
 module.exports = { 
   getAllUsers, 
   updateUserRole, 
@@ -183,6 +247,8 @@ module.exports = {
   verifyUser,
   getCatalogSongs,
   getCatalogAlbums,
+  unpublishCatalogSong,
   deleteCatalogSong,
-  deleteCatalogAlbum
+  deleteCatalogAlbum,
+  getOnlineUsers
 };

@@ -1,5 +1,7 @@
-const app                    = require('./src/app');
-const db                     = require('./src/models');
+const app                                  = require('./src/app');
+const db                                   = require('./src/models');
+const { startLyricsWorker }               = require('./src/workers/lyricsWorker');
+const { checkAndPublishScheduledContent } = require('./src/services/schedulerService');
 
 const PORT = process.env.PORT || 5000;
 
@@ -11,7 +13,19 @@ const start = async () => {
   await db.sequelize.authenticate();
   console.log('✅  Database connected — host:', process.env.DB_HOST, '| db:', process.env.DB_NAME);
 
-  // 2. Start HTTP server
+  // 2. Start BullMQ background lyrics worker
+  try {
+    startLyricsWorker();
+  } catch (wErr) {
+    console.warn('⚠️ Could not initialize lyrics worker (ensure Redis/Memurai is running):', wErr.message);
+  }
+
+  // 3. Start periodic background scheduler (every 15s) to auto-publish scheduled releases
+  setInterval(() => {
+    checkAndPublishScheduledContent().catch(err => console.error('[Scheduler Interval Error]', err));
+  }, 15000);
+
+  // 3. Start HTTP server
   app.listen(PORT, () => {
     console.log('');
     console.log('');

@@ -49,6 +49,11 @@ module.exports = (sequelize, DataTypes) => {
     duration: DataTypes.INTEGER,
     audio_url: DataTypes.STRING,
     lyrics: DataTypes.TEXT,
+    lyrics_status: {
+      type: DataTypes.ENUM('idle', 'processing', 'completed', 'failed'),
+      defaultValue: 'idle'
+    },
+    lyrics_error: DataTypes.TEXT,
     track_number: DataTypes.INTEGER,
     play_count: {
       type: DataTypes.INTEGER,

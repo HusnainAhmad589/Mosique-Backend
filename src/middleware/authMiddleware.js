@@ -103,10 +103,19 @@ const verifyToken = async (req, res, next) => {
       id: user.id,
       username: user.username,
       email: user.email,
+      display_name: user.display_name,
+      avatar_url: user.avatar_url,
       is_active: user.is_active,
       role: user.Role ? user.Role.slug : 'listener'
     };
     req.token = token; // needed by logout
+
+    // Track active presence in background (fire-and-forget)
+    try {
+      const { recordUserActivity } = require('../services/presenceService');
+      recordUserActivity(req.user).catch(() => {});
+    } catch (e) {}
+
     next();
   } catch (err) {
     console.error('Auth middleware error:', err);

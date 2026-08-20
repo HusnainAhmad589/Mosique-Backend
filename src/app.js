@@ -68,11 +68,11 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-const { apiLimiter, authLimiter } = require('./middleware/rateLimiter');
+const { apiLimiter } = require('./middleware/rateLimiter');
 
 //  API Routes
 
-app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api', apiLimiter);
 app.use('/api/admin',     adminRoutes);
 app.use('/api/artist',    artistRoutes);
