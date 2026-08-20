@@ -3,10 +3,11 @@ const { Song, Album, User } = require('../models');
 // Define allowed transitions per role
 const VALID_TRANSITIONS = {
   artist: {
-    'draft': ['pending_review', 'published'], // published only if no moderation required
+    'draft': ['pending_review', 'published', 'scheduled'], // published only if no moderation required
     'published': ['archived'],
-    'pending_review': ['draft'], // can pull back from review
-    'archived': ['draft', 'published'] // can unarchive
+    'pending_review': ['draft', 'scheduled'], // can pull back from review or schedule
+    'scheduled': ['published', 'draft', 'archived'],
+    'archived': ['draft', 'published', 'scheduled'] // can unarchive
   },
   moderator: {
     'pending_review': ['published', 'draft', 'scheduled'],

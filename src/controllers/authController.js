@@ -55,6 +55,8 @@ const login = async (req, res) => {
     const { email, password } = req.body;
     const { token, user } = await authService.loginUser(email, password);
 
+    // console.log("Token: ", token);
+
     // Set token as an HttpOnly cookie (not accessible by JavaScript)
     res.cookie('mosique_token', token, {
       httpOnly: true,
@@ -84,6 +86,12 @@ const logout = async (req, res) => {
   try {
     await authService.logoutUser(req.token, req.user.id);
 
+    // Remove presence from active Redis set immediately
+    try {
+      const { removeUserPresence } = require('../services/presenceService');
+      await removeUserPresence(req.user.id);
+    } catch (e) {}
+
     // Clear the HttpOnly cookie
     res.clearCookie('mosique_token', {
       httpOnly: true,
@@ -98,6 +106,18 @@ const logout = async (req, res) => {
   } catch (err) {
     console.error('Logout error:', err);
     return res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+};
+
+//  POST /api/auth/heartbeat
+//  (requires verifyToken middleware — refreshes active presence)
+const heartbeat = async (req, res) => {
+  try {
+    const { recordUserActivity } = require('../services/presenceService');
+    await recordUserActivity(req.user);
+    return res.status(200).json({ success: true, timestamp: Date.now() });
+  } catch (err) {
+    return res.status(200).json({ success: true });
   }
 };
 
@@ -258,4 +278,4 @@ const deleteAccount = async (req, res) => {
     return res.status(status).json({ success: false, message });
   }
 };
-module.exports = { register, login, logout, getMe, changePassword, forgotPassword, resetPassword, updateProfile, deactivateAccount, deleteAccount };
+module.exports = { register, login, logout, heartbeat, getMe, changePassword, forgotPassword, resetPassword, updateProfile, deactivateAccount, deleteAccount };

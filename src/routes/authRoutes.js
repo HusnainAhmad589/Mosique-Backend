@@ -1,24 +1,25 @@
 const express  = require('express');
 const router   = express.Router();
 
-const { register, login, logout, getMe, changePassword, forgotPassword, resetPassword, updateProfile, deactivateAccount, deleteAccount } = require('../controllers/authController');
+const { register, login, logout, heartbeat, getMe, changePassword, forgotPassword, resetPassword, updateProfile, deactivateAccount, deleteAccount } = require('../controllers/authController');
 const { verifyToken }                     = require('../middleware/authMiddleware');
+const { authLimiter }                     = require('../middleware/rateLimiter');
 const { registerValidators, loginValidators, changePasswordValidators, forgotPasswordValidators, resetPasswordValidators } = require('../validators/authValidators');
 
 //  Public routes  (no token required)
 
 
 // POST /api/auth/register
-router.post('/register', registerValidators, register);
+router.post('/register', authLimiter, registerValidators, register);
 
 // POST /api/auth/login
-router.post('/login', loginValidators, login);
+router.post('/login', authLimiter, loginValidators, login);
 
 // POST /api/auth/forgot-password
-router.post('/forgot-password', forgotPasswordValidators, forgotPassword);
+router.post('/forgot-password', authLimiter, forgotPasswordValidators, forgotPassword);
 
 // POST /api/auth/reset-password
-router.post('/reset-password', resetPasswordValidators, resetPassword);
+router.post('/reset-password', authLimiter, resetPasswordValidators, resetPassword);
 
 
 //  Protected routes  (valid JWT required)
@@ -26,6 +27,9 @@ router.post('/reset-password', resetPasswordValidators, resetPassword);
 
 // POST /api/auth/logout
 router.post('/logout', verifyToken, logout);
+
+// POST /api/auth/heartbeat
+router.post('/heartbeat', verifyToken, heartbeat);
 
 // GET  /api/auth/me
 router.get('/me', verifyToken, getMe);

@@ -38,7 +38,7 @@ exports.publishSong = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Audio file is required.' });
     }
 
-    const { title, category_id, album_id, duration, lyrics, track_number, status } = req.body;
+    const { title, category_id, album_id, duration, lyrics, track_number, status, scheduled_at } = req.body;
     
     const category = await Category.findByPk(category_id);
     if (!category) {
@@ -53,7 +53,16 @@ exports.publishSong = async (req, res) => {
     }
 
     const audio_url = `/uploads/audio/${req.file.filename}`;
-    const initialStatus = ['draft', 'pending_review', 'published'].includes(status) ? status : 'draft';
+    let initialStatus = ['draft', 'pending_review', 'published', 'scheduled'].includes(status) ? status : 'published';
+    let scheduledDate = null;
+
+    if (scheduled_at) {
+      const parsedDate = new Date(scheduled_at);
+      if (!isNaN(parsedDate.getTime())) {
+        initialStatus = 'scheduled';
+        scheduledDate = parsedDate;
+      }
+    }
 
     const song = await Song.create({
       artist_id: req.user.id,
@@ -64,10 +73,15 @@ exports.publishSong = async (req, res) => {
       audio_url,
       lyrics,
       track_number,
-      status: initialStatus
+      status: initialStatus,
+      scheduled_at: scheduledDate
     });
 
-    res.status(201).json({ success: true, message: 'Song published successfully', song });
+    const msg = initialStatus === 'scheduled' 
+      ? `Song "${title}" scheduled to release automatically on ${scheduledDate.toLocaleString()}` 
+      : 'Song published successfully';
+
+    res.status(201).json({ success: true, message: msg, song });
   } catch (error) {
     console.error('Error publishing song:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
@@ -210,3 +224,16 @@ exports.getAlbums = artistAlbumController.getAlbums;
 exports.createAlbum = artistAlbumController.createAlbum;
 exports.updateAlbumStatus = artistAlbumController.updateAlbumStatus;
 exports.deleteAlbum = artistAlbumController.deleteAlbum;
+
+// Moderator Exports
+const artistModeratorController = require('./artist/artistModeratorController');
+exports.getModerators = artistModeratorController.getModerators;
+exports.addModerator = artistModeratorController.addModerator;
+exports.removeModerator = artistModeratorController.removeModerator;
+
+// Lyric Exports
+const artistLyricController = require('./artist/artistLyricController');
+exports.generateLyrics = artistLyricController.generateLyrics;
+exports.updateLyrics = artistLyricController.updateLyrics;
+exports.getLyricsStatus = artistLyricController.getLyricsStatus;
+

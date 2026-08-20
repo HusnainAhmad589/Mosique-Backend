@@ -12,7 +12,13 @@ const {
   getSongs, 
   publishSong, 
   deleteSong,
-  getArtistStats 
+  getArtistStats,
+  getModerators,
+  addModerator,
+  removeModerator,
+  generateLyrics,
+  updateLyrics,
+  getLyricsStatus
 } = require('../controllers/artistController');
 
 const { verifyToken, requireRole } = require('../middleware/authMiddleware');
@@ -36,9 +42,18 @@ router.delete('/albums/:id', deleteAlbum);
 // --- Songs ---
 router.get('/songs', getSongs);
 router.post('/songs', uploadAudio.single('audio'), publishSong);
+router.post('/songs/:id/generate-lyrics', generateLyrics);
+router.get('/songs/:id/lyrics-status', getLyricsStatus);
+router.put('/songs/:id/lyrics', updateLyrics);
 router.delete('/songs/:id', deleteSong);
+
+// --- Moderators ---
+router.get('/moderators', getModerators);
+router.post('/moderators', addModerator);
+router.delete('/moderators/:id', removeModerator);
 
 // --- Stats (Placeholder) ---
 router.get('/stats', getArtistStats);
 
 module.exports = router;
+

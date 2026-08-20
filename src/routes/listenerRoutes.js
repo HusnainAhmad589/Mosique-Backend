@@ -19,7 +19,9 @@ const {
   getArtistDetails,
   addToHistory,
   getHistory,
-  recordPlay
+  recordPlay,
+  reportSong,
+  getSongLyrics
 } = require('../controllers/listenerController');
 const { verifyToken, requireRole } = require('../middleware/authMiddleware');
 
@@ -32,6 +34,9 @@ router.use(requireRole('listener'));
 
 // GET /api/listener/feed
 router.get('/feed', getFeed);
+
+// GET /api/listener/songs/:id/lyrics
+router.get('/songs/:id/lyrics', getSongLyrics);
 
 // GET /api/listener/albums
 router.get('/albums', getAlbums);
@@ -69,5 +74,8 @@ router.get('/artist/:artistId', getArtistDetails);
 // --- Listening History ---
 router.get('/history', getHistory);
 router.post('/history', addToHistory);
+
+// --- Report Song ---
+router.post('/report', reportSong);
 
 module.exports = router;

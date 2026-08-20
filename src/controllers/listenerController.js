@@ -72,6 +72,8 @@ const getFeed = async (req, res) => {
       duration: song.duration,
       play_count: song.play_count,
       created_at: song.created_at,
+      lyrics: song.lyrics,
+      lyrics_status: song.lyrics_status,
     }));
 
     const paginated = formatPaginatedResponse(items, count, page, limit);
@@ -145,6 +147,8 @@ const getFavorites = async (req, res) => {
         duration: song.duration,
         play_count: song.play_count,
         created_at: song.created_at,
+        lyrics: song.lyrics,
+        lyrics_status: song.lyrics_status,
       };
     }).filter(Boolean);
 
@@ -269,6 +273,8 @@ const getPlaylists = async (req, res) => {
         artist_name: song.Artist?.display_name || song.Artist?.username || 'Unknown Artist',
         artist_id: song.Artist?.id,
         category_name: song.Category?.name || 'Uncategorized',
+        lyrics: song.lyrics,
+        lyrics_status: song.lyrics_status,
       }))
     }));
 
@@ -534,6 +540,8 @@ const getArtistDetails = async (req, res) => {
         cover_url: s.Album?.cover_url || null,
         album_title: s.Album?.title || null,
         category_name: s.Category?.name || '',
+        lyrics: s.lyrics,
+        lyrics_status: s.lyrics_status,
       })),
       albums: albums.map(a => ({
         id: a.id,
@@ -613,6 +621,82 @@ const addToHistory = async (req, res) => {
   }
 };
 
+// POST /api/listener/report
+const reportSong = async (req, res) => {
+  try {
+    const { songId, reason } = req.body;
+
+    if (!songId || !reason || !reason.trim()) {
+      return res.status(400).json({ success: false, message: 'Song ID and reason are required.' });
+    }
+
+    const song = await Song.findByPk(songId);
+    if (!song) {
+      return res.status(404).json({ success: false, message: 'Song not found.' });
+    }
+
+    // Prevent duplicate pending reports from the same user for the same song
+    const { Report } = require('../models');
+    const existingReport = await Report.findOne({
+      where: {
+        reporter_id: req.user.id,
+        song_id: songId,
+        status: 'pending'
+      }
+    });
+
+    if (existingReport) {
+      return res.status(409).json({ success: false, message: 'You have already reported this song. Your report is pending review.' });
+    }
+
+    await Report.create({
+      reporter_id: req.user.id,
+      song_id: songId,
+      reason: reason.trim(),
+      status: 'pending'
+    });
+
+    return res.status(201).json({ success: true, message: 'Song reported successfully. A moderator will review it shortly.' });
+  } catch (err) {
+    console.error('reportSong error:', err);
+    return res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+};
+
+// GET /api/listener/songs/:id/lyrics
+const getSongLyrics = async (req, res) => {
+  try {
+    const song = await Song.findByPk(req.params.id, {
+      attributes: ['id', 'title', 'lyrics', 'lyrics_status', 'lyrics_error']
+    });
+
+    if (!song) {
+      return res.status(404).json({ success: false, message: 'Song not found.' });
+    }
+
+    let parsedLyrics = null;
+    if (song.lyrics) {
+      try {
+        parsedLyrics = typeof song.lyrics === 'string' ? JSON.parse(song.lyrics) : song.lyrics;
+      } catch (e) {
+        parsedLyrics = song.lyrics;
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      songId: song.id,
+      title: song.title,
+      lyrics: parsedLyrics,
+      lyrics_status: song.lyrics_status || 'idle',
+      lyrics_error: song.lyrics_error || null
+    });
+  } catch (err) {
+    console.error('getSongLyrics error:', err);
+    return res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+};
+
 module.exports = {
   getFeed,
   addFavorite,
@@ -631,5 +715,7 @@ module.exports = {
   getArtistDetails,
   addToHistory,
   getHistory,
-  recordPlay
+  recordPlay,
+  reportSong,
+  getSongLyrics
 };

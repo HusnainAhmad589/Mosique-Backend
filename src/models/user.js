@@ -9,6 +9,8 @@ module.exports = (sequelize, DataTypes) => {
       User.hasOne(models.ArtistProfile, { foreignKey: 'user_id' });
       User.hasMany(models.Album, { foreignKey: 'artist_id' });
       User.hasMany(models.Song, { foreignKey: 'artist_id' });
+      User.hasMany(models.ArtistModerator, { foreignKey: 'artist_id', as: 'PersonalModerators' });
+      User.hasMany(models.ArtistModerator, { foreignKey: 'moderator_id', as: 'ModeratedArtists' });
     }
   }
   User.init({

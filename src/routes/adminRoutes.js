@@ -35,6 +35,12 @@ router.get('/catalog/songs', requireRole('admin'), require('../controllers/admin
 // GET /api/admin/catalog/albums
 router.get('/catalog/albums', requireRole('admin'), require('../controllers/adminController').getCatalogAlbums);
 
+// GET /api/admin/online-users
+router.get('/online-users', requireRole('admin'), require('../controllers/adminController').getOnlineUsers);
+
+// PUT /api/admin/catalog/songs/:id/unpublish
+router.put('/catalog/songs/:id/unpublish', requireRole('admin'), require('../controllers/adminController').unpublishCatalogSong);
+
 // DELETE /api/admin/catalog/songs/:id
 router.delete('/catalog/songs/:id', requireRole('admin'), require('../controllers/adminController').deleteCatalogSong);
 
